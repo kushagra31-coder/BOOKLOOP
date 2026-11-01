@@ -1,0 +1,296 @@
+.requests-page {
+  padding: var(--space-6) var(--space-4) var(--space-12);
+}
+
+.requests-header {
+  margin-bottom: var(--space-6);
+}
+
+.requests-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy);
+  margin: 0 0 var(--space-2);
+}
+
+.requests-subtitle {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+/* Tabs */
+.requests-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-1);
+}
+
+.requests-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  min-height: 44px;
+  transition: all var(--transition-fast);
+}
+
+.requests-tab-btn:hover {
+  color: var(--color-navy);
+}
+
+.requests-tab-btn.active {
+  color: var(--color-navy);
+  font-weight: var(--font-weight-bold);
+  border-bottom-color: var(--color-navy);
+}
+
+.requests-badge {
+  background-color: var(--color-soft-blue);
+  color: var(--color-navy);
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-bold);
+}
+
+.requests-badge.active-badge {
+  background-color: var(--color-navy);
+  color: #fff;
+}
+
+/* Request Cards List */
+.requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.request-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.request-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.request-book-info {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+}
+
+.request-book-thumb {
+  width: 56px;
+  height: 70px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-soft-blue);
+  object-fit: cover;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  overflow: hidden;
+}
+
+.request-book-details {
+  min-width: 0;
+}
+
+.request-book-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy);
+  margin: 0 0 2px;
+  text-decoration: none;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 450px;
+}
+
+.request-book-title:hover {
+  text-decoration: underline;
+}
+
+.request-book-meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.request-book-price {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy);
+}
+
+/* Status Badges */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.status-pill.pending {
+  background-color: #fff8e1;
+  color: #b78103;
+  border: 1px solid #ffe082;
+}
+
+.status-pill.accepted {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.status-pill.declined {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+}
+
+.status-pill.cancelled {
+  background-color: #f5f5f5;
+  color: #616161;
+  border: 1px solid #e0e0e0;
+}
+
+.status-pill.closed {
+  background-color: #f5f5f5;
+  color: #757575;
+  border: 1px solid #e0e0e0;
+}
+
+/* Message block */
+.request-message-box {
+  background-color: var(--color-bg);
+  border-left: 3px solid var(--color-navy);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  line-height: var(--line-height-normal);
+  word-break: break-word;
+}
+
+.request-message-sender {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy);
+  margin-bottom: 2px;
+}
+
+/* Footer & Actions */
+.request-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+  margin-top: auto;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.request-date {
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+}
+
+.request-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* WhatsApp button styling */
+.btn-whatsapp {
+  background-color: #25D366;
+  color: #ffffff;
+  border: none;
+  font-weight: var(--font-weight-bold);
+}
+
+.btn-whatsapp:hover {
+  background-color: #1ebc59;
+}
+
+/* Modal styles for WhatsApp warning */
+.request-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-4);
+}
+
+.request-modal-content {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  max-width: 440px;
+  width: 100%;
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+}
+
+@media (max-width: 600px) {
+  .request-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .request-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .request-actions {
+    width: 100%;
+    display: flex;
+  }
+
+  .request-actions > * {
+    flex: 1;
+  }
+
+  .request-book-title {
+    max-width: 220px;
+  }
+}

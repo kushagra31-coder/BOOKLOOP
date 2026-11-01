@@ -1,0 +1,60 @@
+.contact-page {
+  padding: var(--space-8) var(--space-4) var(--space-12);
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.contact-header {
+  margin-bottom: var(--space-6);
+  text-align: center;
+}
+
+.contact-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy);
+  margin: 0 0 var(--space-2);
+}
+
+.contact-subtitle {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin: 0;
+  line-height: var(--line-height-normal);
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.contact-char-count {
+  text-align: right;
+  font-size: 0.75rem;
+  margin-top: -8px;
+  color: var(--color-muted);
+}
+
+.contact-success-card {
+  text-align: center;
+  padding: var(--space-6) var(--space-4);
+}
+
+.contact-success-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-3);
+}
+
+.contact-success-title {
+  font-size: var(--font-size-xl);
+  color: var(--color-navy);
+  margin-bottom: var(--space-2);
+}
+
+.contact-success-text {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-6);
+  line-height: var(--line-height-normal);
+}
