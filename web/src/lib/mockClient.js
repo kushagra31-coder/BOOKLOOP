@@ -114,8 +114,92 @@ class MockQueryBuilder {
         institution_id: u.institution_id,
         course_or_class: u.course_or_class,
         graduation_year: u.graduation_year,
+        created_at: '2026-08-01T00:00:00Z',
         institution: institutions.find((i) => i.id === u.institution_id) || { name: 'AITR Indore', city: 'Indore' },
+        private: { whatsapp_number: u.whatsapp_number, account_status: u.account_status || 'active' },
       }));
+    } else if (this.table === 'reports') {
+      result = [
+        {
+          id: 'rep-1',
+          reporter_id: 'user-priya',
+          reported_user_id: 'user-bhagyesh',
+          listing_id: 'book-1',
+          reason: 'condition_mismatch',
+          details: 'Book cover had slight wear not mentioned in description.',
+          status: 'open',
+          admin_notes: null,
+          created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+          resolved_at: null,
+          reporter: { display_name: 'Priya Nair' },
+          reported_user: { display_name: 'Bhagyesh Jain' },
+          listing: { id: 'book-1', title: 'Operating System Concepts (10th Dinosaur Edition)' },
+        },
+        {
+          id: 'rep-2',
+          reporter_id: 'user-rohan',
+          reported_user_id: 'user-kushagra',
+          listing_id: 'book-3',
+          reason: 'spam',
+          details: 'Verified test inquiry.',
+          status: 'resolved',
+          admin_notes: 'Reviewed by admin. Listing is authentic.',
+          created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
+          resolved_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+          reporter: { display_name: 'Rohan Verma' },
+          reported_user: { display_name: 'Kushagra Singh Tomar' },
+          listing: { id: 'book-3', title: 'Higher Engineering Mathematics' },
+        },
+      ];
+    } else if (this.table === 'admin_audit') {
+      result = [
+        {
+          id: 'aud-1',
+          admin_user_id: 'user-admin',
+          action: 'institution_verified',
+          target_type: 'institution',
+          target_id: 'inst-1',
+          details: 'Verified Acropolis Institute of Technology and Research campus domain',
+          created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
+        },
+        {
+          id: 'aud-2',
+          admin_user_id: 'user-admin',
+          action: 'report_resolved',
+          target_type: 'report',
+          target_id: 'rep-2',
+          details: 'Reviewed and closed test report on Higher Engineering Mathematics',
+          created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+        },
+        {
+          id: 'aud-3',
+          admin_user_id: 'user-admin',
+          action: 'account_approved',
+          target_type: 'user',
+          target_id: 'user-kushagra',
+          details: 'Verified campus credentials for Kushagra Singh Tomar',
+          created_at: new Date(Date.now() - 3600000 * 72).toISOString(),
+        },
+      ];
+    } else if (this.table === 'contact_messages') {
+      result = [
+        {
+          id: 'cmsg-1',
+          name: 'Aditya Mehta',
+          email: 'aditya.mehta@aitr.ac.in',
+          subject: 'Question about book handover points on campus',
+          message: 'Hi Admin, where is the designated safety meet point inside AITR campus?',
+          created_at: new Date(Date.now() - 3600000 * 14).toISOString(),
+        },
+        {
+          id: 'cmsg-2',
+          name: 'Sneha Patel',
+          email: 'sneha@dpsindore.edu',
+          subject: 'School textbook request for Class 12 CBSE',
+          message: 'Can we add NCERT Physics and Chemistry to the standard categories?',
+          created_at: new Date(Date.now() - 3600000 * 36).toISOString(),
+        },
+      ];
     } else if (this.table === 'profile_private') {
       const users = DemoStore.getUsers();
       result = users.map((u) => ({
@@ -257,7 +341,7 @@ export function createMockClient() {
           return { data: null, error: null };
         }
 
-        if (funcName === 'admin_get_stats') {
+        if (funcName === 'admin_stats' || funcName === 'admin_get_stats') {
           const listings = DemoStore.getListings();
           const requests = DemoStore.getRequests();
           const users = DemoStore.getUsers();
@@ -268,10 +352,42 @@ export function createMockClient() {
               total_users: users.length,
               pending_requests: requests.filter((r) => r.status === 'pending').length,
               accepted_requests: requests.filter((r) => r.status === 'accepted').length,
-              open_reports: 0,
+              open_reports: 1,
             },
             error: null,
           };
+        }
+
+        if (funcName === 'admin_update_report') {
+          return { data: { success: true }, error: null };
+        }
+
+        if (funcName === 'admin_hide_listing') {
+          if (params.p_listing_id) {
+            const list = DemoStore.getListings();
+            const target = list.find((b) => b.id === params.p_listing_id);
+            if (target) target.status = 'hidden';
+            localStorage.setItem('bookloop_demo_listings', JSON.stringify(list));
+          }
+          return { data: { success: true }, error: null };
+        }
+
+        if (funcName === 'admin_set_user_status') {
+          if (params.p_user_id) {
+            const users = DemoStore.getUsers();
+            const target = users.find((u) => u.id === params.p_user_id);
+            if (target) target.account_status = params.p_status;
+            localStorage.setItem('bookloop_demo_users', JSON.stringify(users));
+          }
+          return { data: { success: true }, error: null };
+        }
+
+        if (funcName === 'admin_upsert_institution') {
+          return { data: { id: params.p_id || `inst-${Date.now()}` }, error: null };
+        }
+
+        if (funcName === 'admin_upsert_category') {
+          return { data: { id: params.p_id || `cat-${Date.now()}` }, error: null };
         }
 
         return { data: null, error: null };

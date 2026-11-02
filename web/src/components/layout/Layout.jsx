@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 
 export function Layout() {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
@@ -57,6 +57,21 @@ export function Layout() {
             </NavLink>
             {user ? (
               <>
+                {isAdmin && (
+                  <NavLink
+                    to="/admin"
+                    className={({ isActive }) => `nav-link nav-link-admin ${isActive ? 'active' : ''}`}
+                    style={{
+                      backgroundColor: '#DCFCE7',
+                      color: '#166534',
+                      fontWeight: '700',
+                      borderRadius: '6px',
+                      padding: '6px 12px',
+                    }}
+                  >
+                    🛡️ Admin
+                  </NavLink>
+                )}
                 <NavLink to="/requests" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                   Requests
                 </NavLink>
@@ -151,6 +166,12 @@ export function Layout() {
           <span className="mobile-nav-icon" aria-hidden="true">➕</span>
           <span className="mobile-nav-label">Sell</span>
         </NavLink>
+        {isAdmin && (
+          <NavLink to="/admin" className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}>
+            <span className="mobile-nav-icon" aria-hidden="true">🛡️</span>
+            <span className="mobile-nav-label">Admin</span>
+          </NavLink>
+        )}
         <NavLink to={user ? "/profile" : "/login"} className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}>
           <span className="mobile-nav-icon" aria-hidden="true">{user ? '👤' : '🔑'}</span>
           <span className="mobile-nav-label">{user ? 'Profile' : 'Sign In'}</span>

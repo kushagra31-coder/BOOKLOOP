@@ -70,12 +70,21 @@ export function generateCoverSvg({ title, author, category, colorHex, accentHex 
 }
 
 export const DEMO_INSTITUTIONS = [
-  { id: 'inst-1', name: 'Acropolis Institute of Technology and Research', institution_type: 'college', city: 'Indore', area: 'Khandwa Road', is_active: true },
+  // Colleges / Universities
+  { id: 'inst-1', name: 'Acropolis Institute of Technology and Research (AITR)', institution_type: 'college', city: 'Indore', area: 'Manglia / Bypass', is_active: true },
   { id: 'inst-2', name: 'IET DAVV', institution_type: 'college', city: 'Indore', area: 'Khandwa Road', is_active: true },
-  { id: 'inst-3', name: 'SGSITS', institution_type: 'college', city: 'Indore', area: 'Vallabh Nagar', is_active: true },
+  { id: 'inst-3', name: 'SGSITS Indore', institution_type: 'college', city: 'Indore', area: 'Vallabh Nagar', is_active: true },
   { id: 'inst-4', name: 'IIT Indore', institution_type: 'college', city: 'Indore', area: 'Simrol', is_active: true },
   { id: 'inst-5', name: 'Medicaps University', institution_type: 'college', city: 'Indore', area: 'Rau', is_active: true },
   { id: 'inst-6', name: 'IPS Academy', institution_type: 'college', city: 'Indore', area: 'Rajendra Nagar', is_active: true },
+
+  // Schools (CBSE / ICSE / State Board)
+  { id: 'inst-s1', name: 'Delhi Public School (DPS Indore)', institution_type: 'school', city: 'Indore', area: 'Nipania', is_active: true },
+  { id: 'inst-s2', name: 'The Emerald Heights International School', institution_type: 'school', city: 'Indore', area: 'Rau', is_active: true },
+  { id: 'inst-s3', name: 'Choithram School', institution_type: 'school', city: 'Indore', area: 'Manik Bagh', is_active: true },
+  { id: 'inst-s4', name: 'St. Paul Higher Secondary School', institution_type: 'school', city: 'Indore', area: 'Boundary Road', is_active: true },
+  { id: 'inst-s5', name: 'The Shishukunj International School', institution_type: 'school', city: 'Indore', area: 'Jhalaria', is_active: true },
+  { id: 'inst-s6', name: 'Advanced Academy', institution_type: 'school', city: 'Indore', area: 'Nipania', is_active: true },
 ];
 
 export const DEMO_CATEGORIES = [

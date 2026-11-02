@@ -25,6 +25,7 @@ export function LoginPage({ initialTab }) {
 
   // ── Register State ──
   const [studyType, setStudyType] = useState('college'); // 'college' | 'school'
+  const isSchool = studyType === 'school';
   const [regName, setRegName] = useState('');
   const [regDept, setRegDept] = useState('CSE');
   const [regInstitutionId, setRegInstitutionId] = useState('');
@@ -35,6 +36,22 @@ export function LoginPage({ initialTab }) {
   const [regStep, setRegStep] = useState(1); // 1 = form, 2 = otp, 3 = success
   const [regSubmitting, setRegSubmitting] = useState(false);
   const [regError, setRegError] = useState('');
+
+  // Handle switching between College and School with logical defaults
+  const handleStudyTypeChange = (newType) => {
+    setStudyType(newType);
+    if (newType === 'school') {
+      setRegDept('Science (PCM)');
+      setRegYear('Class 12');
+      const firstSchool = institutions.find((i) => i.institution_type === 'school');
+      if (firstSchool) setRegInstitutionId(firstSchool.id);
+    } else {
+      setRegDept('CSE');
+      setRegYear('3rd Year');
+      const firstCollege = institutions.find((i) => (i.institution_type || 'college') === 'college');
+      if (firstCollege) setRegInstitutionId(firstCollege.id);
+    }
+  };
 
   // OTP State
   const DEMO_OTP = '849201';
@@ -417,22 +434,22 @@ export function LoginPage({ initialTab }) {
                     <div className="study-type-pills">
                       <button
                         type="button"
-                        className={`study-type-btn ${studyType === 'college' ? 'active' : ''}`}
-                        onClick={() => setStudyType('college')}
+                        className={`study-type-btn ${!isSchool ? 'active' : ''}`}
+                        onClick={() => handleStudyTypeChange('college')}
                       >
                         🎓 College / University
                       </button>
                       <button
                         type="button"
-                        className={`study-type-btn ${studyType === 'school' ? 'active' : ''}`}
-                        onClick={() => setStudyType('school')}
+                        className={`study-type-btn ${isSchool ? 'active' : ''}`}
+                        onClick={() => handleStudyTypeChange('school')}
                       >
                         🏫 School
                       </button>
                     </div>
                   </div>
 
-                  {/* Name and Dept */}
+                  {/* Name and Stream/Department */}
                   <div className="auth-grid-2">
                     <div className="auth-group">
                       <label className="auth-label" htmlFor="regName">
@@ -450,7 +467,7 @@ export function LoginPage({ initialTab }) {
                     </div>
                     <div className="auth-group">
                       <label className="auth-label" htmlFor="regDept">
-                        Department *
+                        {isSchool ? 'Stream / Subject *' : 'Department *'}
                       </label>
                       <select
                         id="regDept"
@@ -459,13 +476,27 @@ export function LoginPage({ initialTab }) {
                         onChange={(e) => setRegDept(e.target.value)}
                         required
                       >
-                        <option value="CSE">CSE</option>
-                        <option value="IT">IT</option>
-                        <option value="ECE">ECE</option>
-                        <option value="EEE">EEE</option>
-                        <option value="MECH">MECH</option>
-                        <option value="CIVIL">CIVIL</option>
-                        <option value="Other">Other</option>
+                        {isSchool ? (
+                          <>
+                            <option value="Science (PCM)">Science (PCM)</option>
+                            <option value="Science (PCB)">Science (PCB)</option>
+                            <option value="Commerce">Commerce</option>
+                            <option value="Humanities / Arts">Humanities / Arts</option>
+                            <option value="General (Class 6-10)">General (Class 6-10)</option>
+                            <option value="Other">Other</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="CSE">CSE</option>
+                            <option value="IT">IT</option>
+                            <option value="ECE">ECE</option>
+                            <option value="EEE">EEE</option>
+                            <option value="MECH">MECH</option>
+                            <option value="CIVIL">CIVIL</option>
+                            <option value="Management / MBA">Management / MBA</option>
+                            <option value="Other">Other</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>
@@ -473,7 +504,7 @@ export function LoginPage({ initialTab }) {
                   {/* Institution Dropdown */}
                   <div className="auth-group">
                     <label className="auth-label" htmlFor="regInstitution">
-                      Campus / Institution *
+                      {isSchool ? 'School Name *' : 'College / University *'}
                     </label>
                     <select
                       id="regInstitution"
@@ -482,7 +513,7 @@ export function LoginPage({ initialTab }) {
                       onChange={(e) => setRegInstitutionId(e.target.value)}
                       required
                     >
-                      <option value="">Select your Institution</option>
+                      <option value="">{isSchool ? 'Select your School' : 'Select your College / University'}</option>
                       {filteredInstitutions.map((inst) => (
                         <option key={inst.id} value={inst.id}>
                           {inst.name} {inst.city ? `(${inst.city})` : ''}
@@ -491,11 +522,11 @@ export function LoginPage({ initialTab }) {
                     </select>
                   </div>
 
-                  {/* Year & WhatsApp */}
+                  {/* Year / Class & WhatsApp */}
                   <div className="auth-grid-2">
                     <div className="auth-group">
                       <label className="auth-label" htmlFor="regYear">
-                        Year *
+                        {isSchool ? 'Class / Grade *' : 'Year *'}
                       </label>
                       <select
                         id="regYear"
@@ -504,10 +535,23 @@ export function LoginPage({ initialTab }) {
                         onChange={(e) => setRegYear(e.target.value)}
                         required
                       >
-                        <option value="1st Year">1st Year</option>
-                        <option value="2nd Year">2nd Year</option>
-                        <option value="3rd Year">3rd Year</option>
-                        <option value="4th Year">4th Year</option>
+                        {isSchool ? (
+                          <>
+                            <option value="Class 12">Class 12</option>
+                            <option value="Class 11">Class 11</option>
+                            <option value="Class 10">Class 10</option>
+                            <option value="Class 9">Class 9</option>
+                            <option value="Class 8 & below">Class 8 & below</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                            <option value="Postgraduate">Postgraduate</option>
+                          </>
+                        )}
                       </select>
                     </div>
                     <div className="auth-group">
@@ -529,13 +573,13 @@ export function LoginPage({ initialTab }) {
                   {/* Email & Password */}
                   <div className="auth-group">
                     <label className="auth-label" htmlFor="regEmail">
-                      Campus Email *
+                      {isSchool ? 'Student or Parent Email *' : 'Campus Email *'}
                     </label>
                     <input
                       id="regEmail"
                       type="email"
                       className="auth-input"
-                      placeholder="yourname@campus.edu"
+                      placeholder={isSchool ? 'student@school.edu or yourname@gmail.com' : 'yourname@campus.edu'}
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
                       required
