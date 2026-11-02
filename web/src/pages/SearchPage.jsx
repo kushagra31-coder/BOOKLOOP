@@ -230,30 +230,6 @@ export function SearchPage() {
               ))}
             </Field>
           </div>
-
-          {/* Price Range Filter (in Rupees, 0 is valid, empty is unbounded) */}
-          <div className="search-filter-group">
-            <label className="search-filter-label">Price Range (₹)</label>
-            <div className="search-price-inputs">
-              <Field
-                type="number"
-                min="0"
-                placeholder="Min"
-                value={paramMin}
-                onChange={(e) => updateParam('min', e.target.value)}
-                aria-label="Minimum price in rupees"
-              />
-              <span className="search-price-divider">to</span>
-              <Field
-                type="number"
-                min="0"
-                placeholder="Max"
-                value={paramMax}
-                onChange={(e) => updateParam('max', e.target.value)}
-                aria-label="Maximum price in rupees"
-              />
-            </div>
-          </div>
         </aside>
 
         {/* Main Content Area */}
