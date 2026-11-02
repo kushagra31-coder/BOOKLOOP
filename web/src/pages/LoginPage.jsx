@@ -1,246 +1,666 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Card } from '../components/ui/Card';
-import { Field } from '../components/ui/Field';
-import { Button } from '../components/ui/Button';
-import { ErrorState } from '../components/ui/ErrorState';
-import { Toast } from '../components/ui/Toast';
+import { supabase } from '../lib/supabase';
+import { DemoStore } from '../lib/demoStore';
+import './LoginPage.css';
 
-export function LoginPage() {
+export function LoginPage({ initialTab }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const verifiedBanner = searchParams.get('verified') === '1';
   const nextUrl = searchParams.get('next') || '/';
 
-  const { signIn } = useAuth();
+  // Determine active tab from prop, pathname, or query param
+  const defaultTab = initialTab || (location.pathname === '/register' || searchParams.get('tab') === 'register' ? 'register' : 'login');
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [resending, setResending] = useState(false);
+  const { signIn, signUp } = useAuth();
 
-  const [errorMsg, setErrorMsg] = useState('');
-  const [isUnconfirmed, setIsUnconfirmed] = useState(false);
+  // ── Login State ──
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginSubmitting, setLoginSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
-  const [toastMsg, setToastMsg] = useState(verifiedBanner ? 'Email confirmed! Please sign in with your credentials.' : '');
-  const [toastType, setToastType] = useState('success');
+  // ── Register State ──
+  const [studyType, setStudyType] = useState('college'); // 'college' | 'school'
+  const [regName, setRegName] = useState('');
+  const [regDept, setRegDept] = useState('CSE');
+  const [regInstitutionId, setRegInstitutionId] = useState('');
+  const [regYear, setRegYear] = useState('3rd Year');
+  const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regStep, setRegStep] = useState(1); // 1 = form, 2 = otp, 3 = success
+  const [regSubmitting, setRegSubmitting] = useState(false);
+  const [regError, setRegError] = useState('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrorMsg('');
-    setIsUnconfirmed(false);
+  // OTP State
+  const DEMO_OTP = '849201';
+  const [otpDigits, setOtpDigits] = useState(['8', '4', '9', '2', '0', '1']);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(599);
 
-    if (!email.trim() || !password) {
-      setErrorMsg('Please enter both your email and password.');
-      return;
-    }
+  // Institution List
+  const [institutions, setInstitutions] = useState([]);
 
-    setSubmitting(true);
-    try {
-      const { data, error } = await signIn({ email, password });
-
-      if (error) {
-        const lower = (error.message || '').toLowerCase();
-        if (lower.includes('email not confirmed') || lower.includes('unconfirmed')) {
-          setIsUnconfirmed(true);
-          setErrorMsg('Your campus email has not been verified yet. Please check your inbox or click below to resend the link.');
-        } else if (lower.includes('invalid login credentials') || lower.includes('invalid credentials')) {
-          setErrorMsg('Invalid campus email or password. Please double check and try again.');
+  useEffect(() => {
+    async function loadInstitutions() {
+      try {
+        const { data, error } = await supabase
+          .from('institutions')
+          .select('id, name, city, institution_type')
+          .order('name');
+        if (!error && data && data.length > 0) {
+          setInstitutions(data);
+          const firstMatching = data.find((i) => (i.institution_type || 'college') === studyType);
+          if (firstMatching) setRegInstitutionId(firstMatching.id);
         } else {
-          setErrorMsg(error.message || 'Unable to sign in. Please try again.');
+          const fallback = DemoStore.getInstitutions();
+          setInstitutions(fallback);
+          if (fallback.length > 0) setRegInstitutionId(fallback[0].id);
         }
-        return;
+      } catch (e) {
+        const fallback = DemoStore.getInstitutions();
+        setInstitutions(fallback);
+        if (fallback.length > 0) setRegInstitutionId(fallback[0].id);
       }
+    }
+    loadInstitutions();
+  }, [studyType]);
 
-      // Successful sign in, redirect to intended page
-      navigate(decodeURIComponent(nextUrl), { replace: true });
-    } catch (err) {
-      setErrorMsg(err.message || 'An unexpected sign in error occurred.');
-    } finally {
-      setSubmitting(false);
+  // Sync tab if URL changes
+  useEffect(() => {
+    if (location.pathname === '/register') {
+      setActiveTab('register');
+    } else if (location.pathname === '/login') {
+      setActiveTab('login');
+    }
+  }, [location.pathname]);
+
+  // Countdown timer for OTP
+  useEffect(() => {
+    if (regStep === 2 && otpSecondsLeft > 0) {
+      const timer = setInterval(() => setOtpSecondsLeft((prev) => prev - 1), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [regStep, otpSecondsLeft]);
+
+  const formatTimer = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  // ── Tab Switching ──
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    setLoginError('');
+    setRegError('');
+    if (tab === 'login') {
+      setRegStep(1);
     }
   };
 
-  const handleResendConfirmation = async () => {
-    if (!email.trim() || !email.includes('@')) {
-      setToastMsg('Please enter your email above before requesting a resend.');
-      setToastType('danger');
+  // ── 1-Click Demo Login ──
+  const handleDemoSignIn = async (email, password) => {
+    setLoginEmail(email);
+    setLoginPassword(password);
+    setLoginSubmitting(true);
+    setLoginError('');
+
+    try {
+      const { error } = await signIn({ email, password });
+      if (error) {
+        setLoginError(error.message || 'Unable to sign in with demo credentials.');
+        setLoginSubmitting(false);
+        return;
+      }
+      navigate(decodeURIComponent(nextUrl), { replace: true });
+    } catch (err) {
+      setLoginError(err.message || 'Unexpected login error.');
+      setLoginSubmitting(false);
+    }
+  };
+
+  // ── Regular Login Submit ──
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+
+    if (!loginEmail.trim() || !loginPassword) {
+      setLoginError('Please enter both your email and password.');
       return;
     }
 
-    setResending(true);
+    setLoginSubmitting(true);
     try {
-      const siteUrl = window.location.origin;
-      const redirectUrl = `${siteUrl}/login?verified=1`;
+      const { error } = await signIn({
+        email: loginEmail.trim(),
+        password: loginPassword,
+      });
 
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email.trim().toLowerCase(),
+      if (error) {
+        setLoginError(error.message || 'Invalid campus email or password.');
+        return;
+      }
+
+      navigate(decodeURIComponent(nextUrl), { replace: true });
+    } catch (err) {
+      setLoginError(err.message || 'An unexpected sign in error occurred.');
+    } finally {
+      setLoginSubmitting(false);
+    }
+  };
+
+  // ── Register Step 1: Send OTP ──
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setRegError('');
+
+    if (!regName.trim()) {
+      setRegError('Please enter your full name.');
+      return;
+    }
+    if (!regEmail.trim() || !regEmail.includes('@')) {
+      setRegError('Please enter a valid campus email address.');
+      return;
+    }
+    if (regPassword.length < 6) {
+      setRegError('Password must be at least 6 characters long.');
+      return;
+    }
+    if (!regInstitutionId) {
+      setRegError('Please select your campus or school.');
+      return;
+    }
+
+    setRegSubmitting(true);
+    // Simulate instantaneous verification code delivery
+    setTimeout(() => {
+      setRegSubmitting(false);
+      setRegStep(2);
+      setOtpSecondsLeft(599);
+    }, 400);
+  };
+
+  // ── Register Step 2: Verify OTP ──
+  const handleVerifyOtp = async () => {
+    setRegSubmitting(true);
+    setRegError('');
+
+    try {
+      const { error } = await signUp({
+        email: regEmail.trim(),
+        password: regPassword,
         options: {
-          emailRedirectTo: redirectUrl,
+          data: {
+            display_name: regName.trim(),
+            institution_id: regInstitutionId,
+            course_or_class: `${regDept}, ${regYear}`,
+            whatsapp_number: regPhone.trim() ? `+91${regPhone.trim().replace(/^\+91/, '')}` : '+919826000000',
+          },
         },
       });
 
       if (error) {
-        setToastMsg(error.message || 'Failed to resend confirmation link.');
-        setToastType('danger');
-      } else {
-        setToastMsg('A new confirmation link has been sent to your email.');
-        setToastType('success');
+        setRegError(error.message || 'Verification failed. Please try again.');
+        setRegSubmitting(false);
+        return;
       }
+
+      setRegStep(3);
     } catch (err) {
-      setToastMsg(err.message || 'Error resending confirmation link.');
-      setToastType('danger');
+      setRegError(err.message || 'Registration verification failed.');
     } finally {
-      setResending(false);
+      setRegSubmitting(false);
     }
   };
 
+  // Filter institutions based on College vs School toggle
+  const filteredInstitutions = institutions.filter(
+    (inst) => (inst.institution_type || 'college') === studyType
+  );
+
   return (
-    <div className="container" style={{ padding: 'var(--space-8) var(--space-4)', maxWidth: '440px' }}>
-      <Toast
-        message={toastMsg}
-        type={toastType}
-        onClose={() => setToastMsg('')}
-      />
-
-      <h1 style={{ fontSize: 'var(--font-size-2xl)', color: 'var(--color-navy)', textAlign: 'center', marginBottom: 'var(--space-2)' }}>
-        Sign In
-      </h1>
-      <p style={{ textAlign: 'center', color: 'var(--color-muted)', marginBottom: 'var(--space-6)', fontSize: 'var(--font-size-sm)' }}>
-        Log in with your verified campus email.
-      </p>
-
-      <Card>
-        {verifiedBanner && !errorMsg && (
-          <div style={{
-            backgroundColor: 'var(--color-success-bg)',
-            color: 'var(--color-success)',
-            padding: 'var(--space-3) var(--space-4)',
-            borderRadius: 'var(--radius-md)',
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: 'var(--font-weight-medium)',
-            marginBottom: 'var(--space-4)',
-            textAlign: 'center'
-          }}>
-            ✓ Email verified! You can now sign in below.
+    <div className="auth-page">
+      {/* ── LEFT COLUMN: Navy Editorial Branding ── */}
+      <div className="auth-left">
+        <Link to="/" className="auth-left-top" aria-label="Return to BookLoop Home">
+          <svg width="34" height="34" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="8" fill="#1B2C4B" />
+            <path d="M8 10C8 8.89543 8.89543 8 10 8H15V24H10C8.89543 24 8 23.1046 8 22V10Z" fill="#FFFFFF" opacity="0.9" />
+            <path d="M17 8H22C23.1046 8 24 8.89543 24 10V22C24 23.1046 23.1046 24 22 24H17V8Z" fill="#F4C95D" />
+            <circle cx="16" cy="16" r="3" fill="#1B2C4B" />
+          </svg>
+          <div className="auth-brand-text">
+            Book<span>Loop</span>
           </div>
-        )}
+        </Link>
 
-        {errorMsg && (
-          <div style={{ marginBottom: 'var(--space-4)' }}>
-            <ErrorState
-              title={isUnconfirmed ? 'Email Not Verified' : 'Sign In Error'}
-              message={errorMsg}
-            />
-            {isUnconfirmed && (
-              <div style={{ marginTop: 'var(--space-2)' }}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  fullWidth
-                  onClick={handleResendConfirmation}
-                  loading={resending}
-                >
-                  Resend Verification Email
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column' }}>
-          <Field
-            label="Campus Email"
-            type="email"
-            placeholder="you@college.edu"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
-
-          <Field
-            label="Password"
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
-
-          <Button type="submit" variant="primary" fullWidth loading={submitting} style={{ marginTop: 'var(--space-2)' }}>
-            Sign In
-          </Button>
-
-          {/* Quick 1-Click Demo Accounts */}
-          <div style={{ marginTop: 'var(--space-6)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--color-border)' }}>
-            <p style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-bold)', color: 'var(--color-navy)', textAlign: 'center', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              ⚡ 1-Click Quick Demo Sign In
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-2)' }}>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                fullWidth
-                style={{ justifyContent: 'flex-start', padding: 'var(--space-2) var(--space-3)' }}
-                onClick={() => {
-                  setEmail('kushagrasingh@gmail.com');
-                  setPassword('Demo@1234');
-                  signIn({ email: 'kushagrasingh@gmail.com', password: 'Demo@1234' }).then(() => {
-                    navigate(decodeURIComponent(nextUrl), { replace: true });
-                  });
-                }}
-              >
-                👤 Sign in as <strong>Kushagra Singh Tomar</strong> (Buyer)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                fullWidth
-                style={{ justifyContent: 'flex-start', padding: 'var(--space-2) var(--space-3)' }}
-                onClick={() => {
-                  setEmail('bhagyeshjain@gmail.com');
-                  setPassword('Demo@1234');
-                  signIn({ email: 'bhagyeshjain@gmail.com', password: 'Demo@1234' }).then(() => {
-                    navigate(decodeURIComponent(nextUrl), { replace: true });
-                  });
-                }}
-              >
-                👤 Sign in as <strong>Bhagyesh Jain</strong> (Seller)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                fullWidth
-                style={{ justifyContent: 'flex-start', padding: 'var(--space-2) var(--space-3)' }}
-                onClick={() => {
-                  setEmail('admin@bookloop.test');
-                  setPassword('Demo@1234');
-                  signIn({ email: 'admin@bookloop.test', password: 'Demo@1234' }).then(() => {
-                    navigate(decodeURIComponent(nextUrl), { replace: true });
-                  });
-                }}
-              >
-                🛡️ Sign in as <strong>BookLoop Admin</strong>
-              </Button>
-            </div>
+        <div className="auth-left-center">
+          <div className="auth-tagline">
+            Your campus.<br />
+            Their books.<br />
+            <span>Your price.</span>
           </div>
 
-          <p style={{ textAlign: 'center', fontSize: 'var(--font-size-sm)', color: 'var(--color-muted)', marginTop: 'var(--space-4)' }}>
-            Don't have an account?{' '}
-            <Link to="/register" style={{ color: 'var(--color-navy)', fontWeight: 'var(--font-weight-semibold)' }}>
-              Register
-            </Link>
+          <p className="auth-desc">
+            Join your campus marketplace. Register with your campus email, verify your student identity instantly, and buy or sell textbooks with zero middleman markups.
           </p>
-        </form>
-      </Card>
+
+          <div className="auth-campus-pill">
+            <span>🎓</span> Verified for Acropolis Institute &amp; Top Indore Campuses
+          </div>
+        </div>
+
+        <div className="auth-left-foot">
+          © {new Date().getFullYear()} BookLoop &nbsp;·&nbsp; Made for students<br />
+          Developed by <strong>Kushagra Singh Tomar</strong> &amp; <strong>Bhagyesh Jain</strong>
+        </div>
+      </div>
+
+      {/* ── RIGHT COLUMN: Authentication Forms ── */}
+      <div className="auth-right">
+        <div className="auth-right-container">
+          {/* Top navigation row */}
+          <div className="auth-top-nav">
+            <Link to="/" className="auth-mobile-brand">
+              <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+                <rect width="32" height="32" rx="8" fill="#243B64" />
+                <path d="M8 10C8 8.89543 8.89543 8 10 8H15V24H10C8.89543 24 8 23.1046 8 22V10Z" fill="#FFFFFF" />
+                <path d="M17 8H22C23.1046 8 24 8.89543 24 10V22C24 23.1046 23.1046 24 22 24H17V8Z" fill="#F4C95D" />
+              </svg>
+              <span>BookLoop</span>
+            </Link>
+            <Link to="/" className="auth-back-link">
+              ← Back to Browse
+            </Link>
+          </div>
+
+          {/* Heading */}
+          <h1 className="auth-heading">
+            {activeTab === 'login' ? 'Welcome back.' : 'Create your account.'}
+          </h1>
+          <p className="auth-sub">
+            {activeTab === 'login'
+              ? 'Log in to your campus account or choose a 1-click test persona.'
+              : 'Register and verify your campus email to get started.'}
+          </p>
+
+          {/* Tabs */}
+          <div className="auth-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'login'}
+              className={`auth-tab ${activeTab === 'login' ? 'active' : ''}`}
+              onClick={() => switchTab('login')}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'register'}
+              className={`auth-tab ${activeTab === 'register' ? 'active' : ''}`}
+              onClick={() => switchTab('register')}
+            >
+              Register
+            </button>
+          </div>
+
+          {/* ════════════ LOGIN FORM ════════════ */}
+          {activeTab === 'login' && (
+            <div>
+              <form className="auth-form" onSubmit={handleLoginSubmit}>
+                {loginError && <div className="auth-error-banner">{loginError}</div>}
+
+                <div className="auth-group">
+                  <label className="auth-label" htmlFor="loginEmail">
+                    Campus Email
+                  </label>
+                  <input
+                    id="loginEmail"
+                    type="email"
+                    className="auth-input"
+                    placeholder="yourname@campus.edu"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div className="auth-group">
+                  <label className="auth-label" htmlFor="loginPassword">
+                    Password
+                  </label>
+                  <input
+                    id="loginPassword"
+                    type="password"
+                    className="auth-input"
+                    placeholder="Your account password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="auth-submit-btn"
+                  disabled={loginSubmitting}
+                >
+                  {loginSubmitting ? 'Logging in…' : 'Login'}
+                </button>
+              </form>
+
+              {/* In-Card One-Click Demo Logins */}
+              <div className="demo-logins-box">
+                <div className="demo-logins-header">
+                  <span>⚡</span> One-Click Demo Logins
+                </div>
+                <div className="demo-logins-hint">
+                  Instant sign in with verified campus test accounts:
+                </div>
+                <div className="demo-btn-group">
+                  <button
+                    type="button"
+                    className="demo-user-btn"
+                    onClick={() => handleDemoSignIn('kushagrasingh@gmail.com', 'Demo@1234')}
+                  >
+                    <span className="demo-user-name">
+                      <span>👤</span> Kushagra Singh Tomar
+                    </span>
+                    <span className="demo-user-role buyer">Buyer</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="demo-user-btn"
+                    onClick={() => handleDemoSignIn('bhagyeshjain@gmail.com', 'Demo@1234')}
+                  >
+                    <span className="demo-user-name">
+                      <span>👤</span> Bhagyesh Jain
+                    </span>
+                    <span className="demo-user-role seller">Seller</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="demo-user-btn"
+                    onClick={() => handleDemoSignIn('admin@bookloop.test', 'Demo@1234')}
+                  >
+                    <span className="demo-user-name">
+                      <span>🛡️</span> BookLoop Admin
+                    </span>
+                    <span className="demo-user-role admin">Admin</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════ REGISTER PANEL ════════════ */}
+          {activeTab === 'register' && (
+            <div>
+              {/* Step 1: Registration Form */}
+              {regStep === 1 && (
+                <form className="auth-form" onSubmit={handleSendOtp}>
+                  {regError && <div className="auth-error-banner">{regError}</div>}
+
+                  {/* "I study at" Choice */}
+                  <div className="auth-group">
+                    <label className="auth-label">I study at *</label>
+                    <div className="study-type-pills">
+                      <button
+                        type="button"
+                        className={`study-type-btn ${studyType === 'college' ? 'active' : ''}`}
+                        onClick={() => setStudyType('college')}
+                      >
+                        🎓 College / University
+                      </button>
+                      <button
+                        type="button"
+                        className={`study-type-btn ${studyType === 'school' ? 'active' : ''}`}
+                        onClick={() => setStudyType('school')}
+                      >
+                        🏫 School
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Name and Dept */}
+                  <div className="auth-grid-2">
+                    <div className="auth-group">
+                      <label className="auth-label" htmlFor="regName">
+                        Full Name *
+                      </label>
+                      <input
+                        id="regName"
+                        type="text"
+                        className="auth-input"
+                        placeholder="e.g. Rahul Sharma"
+                        value={regName}
+                        onChange={(e) => setRegName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="auth-group">
+                      <label className="auth-label" htmlFor="regDept">
+                        Department *
+                      </label>
+                      <select
+                        id="regDept"
+                        className="auth-select"
+                        value={regDept}
+                        onChange={(e) => setRegDept(e.target.value)}
+                        required
+                      >
+                        <option value="CSE">CSE</option>
+                        <option value="IT">IT</option>
+                        <option value="ECE">ECE</option>
+                        <option value="EEE">EEE</option>
+                        <option value="MECH">MECH</option>
+                        <option value="CIVIL">CIVIL</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Institution Dropdown */}
+                  <div className="auth-group">
+                    <label className="auth-label" htmlFor="regInstitution">
+                      Campus / Institution *
+                    </label>
+                    <select
+                      id="regInstitution"
+                      className="auth-select"
+                      value={regInstitutionId}
+                      onChange={(e) => setRegInstitutionId(e.target.value)}
+                      required
+                    >
+                      <option value="">Select your Institution</option>
+                      {filteredInstitutions.map((inst) => (
+                        <option key={inst.id} value={inst.id}>
+                          {inst.name} {inst.city ? `(${inst.city})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Year & WhatsApp */}
+                  <div className="auth-grid-2">
+                    <div className="auth-group">
+                      <label className="auth-label" htmlFor="regYear">
+                        Year *
+                      </label>
+                      <select
+                        id="regYear"
+                        className="auth-select"
+                        value={regYear}
+                        onChange={(e) => setRegYear(e.target.value)}
+                        required
+                      >
+                        <option value="1st Year">1st Year</option>
+                        <option value="2nd Year">2nd Year</option>
+                        <option value="3rd Year">3rd Year</option>
+                        <option value="4th Year">4th Year</option>
+                      </select>
+                    </div>
+                    <div className="auth-group">
+                      <label className="auth-label" htmlFor="regPhone">
+                        WhatsApp Number
+                      </label>
+                      <input
+                        id="regPhone"
+                        type="tel"
+                        className="auth-input"
+                        placeholder="10-digit number"
+                        maxLength="10"
+                        value={regPhone}
+                        onChange={(e) => setRegPhone(e.target.value.replace(/\D/g, ''))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email & Password */}
+                  <div className="auth-group">
+                    <label className="auth-label" htmlFor="regEmail">
+                      Campus Email *
+                    </label>
+                    <input
+                      id="regEmail"
+                      type="email"
+                      className="auth-input"
+                      placeholder="yourname@campus.edu"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      required
+                      autoComplete="email"
+                    />
+                  </div>
+
+                  <div className="auth-group">
+                    <label className="auth-label" htmlFor="regPassword">
+                      Password *
+                    </label>
+                    <input
+                      id="regPassword"
+                      type="password"
+                      className="auth-input"
+                      placeholder="Min. 6 characters"
+                      minLength="6"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="auth-submit-btn"
+                    disabled={regSubmitting}
+                  >
+                    {regSubmitting ? 'Sending Verification…' : 'Send Verification Code →'}
+                  </button>
+                </form>
+              )}
+
+              {/* Step 2: OTP Verification */}
+              {regStep === 2 && (
+                <div className="otp-panel">
+                  <button
+                    type="button"
+                    className="otp-back-btn"
+                    onClick={() => setRegStep(1)}
+                  >
+                    ← Back to form
+                  </button>
+
+                  <p style={{ fontSize: '0.9rem', color: 'var(--color-muted)', marginBottom: '8px' }}>
+                    Enter the 6-digit code sent to <strong>{regEmail}</strong>
+                  </p>
+
+                  {/* Demo Mode OTP Box */}
+                  <div className="otp-demo-box">
+                    <div className="otp-demo-label">Demo Mode — Your OTP</div>
+                    <div className="otp-demo-code">{DEMO_OTP}</div>
+                    <div className="otp-demo-note">Instant campus verification enabled — code prefilled below</div>
+                  </div>
+
+                  {/* 6 Digit Inputs */}
+                  <div className="otp-inputs">
+                    {otpDigits.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        id={`otp-${idx}`}
+                        className="otp-digit"
+                        maxLength="1"
+                        inputMode="numeric"
+                        value={digit}
+                        onChange={(e) => {
+                          const val = e.target.value.slice(-1);
+                          const next = [...otpDigits];
+                          next[idx] = val;
+                          setOtpDigits(next);
+                          if (val && idx < 5) {
+                            document.getElementById(`otp-${idx + 1}`)?.focus();
+                          }
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="otp-timer">
+                    Code expires in <span>{formatTimer(otpSecondsLeft)}</span> &nbsp;·&nbsp;
+                    <button
+                      type="button"
+                      className="otp-resend-btn"
+                      onClick={() => setOtpSecondsLeft(599)}
+                    >
+                      Resend
+                    </button>
+                  </div>
+
+                  {regError && <div className="auth-error-banner">{regError}</div>}
+
+                  <button
+                    type="button"
+                    className="auth-submit-btn"
+                    onClick={handleVerifyOtp}
+                    disabled={regSubmitting}
+                  >
+                    {regSubmitting ? 'Verifying Account…' : 'Verify & Create Account'}
+                  </button>
+                </div>
+              )}
+
+              {/* Step 3: Success State */}
+              {regStep === 3 && (
+                <div className="reg-success-panel">
+                  <div className="reg-success-icon">🎉</div>
+                  <div className="reg-success-title">You're in!</div>
+                  <p className="reg-success-sub">
+                    Your campus account has been verified and created successfully.<br />
+                    Welcome to the BookLoop student community!
+                  </p>
+                  <button
+                    type="button"
+                    className="auth-submit-btn"
+                    onClick={() => navigate(decodeURIComponent(nextUrl), { replace: true })}
+                  >
+                    Continue to Marketplace →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

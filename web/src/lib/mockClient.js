@@ -317,9 +317,19 @@ export function createMockClient() {
 
       async signInWithPassword({ email }) {
         const users = DemoStore.getUsers();
-        const found = users.find((u) => u.email.toLowerCase() === (email || '').toLowerCase().trim());
+        const em = (email || '').toLowerCase().trim();
+        let found = users.find((u) => u.email.toLowerCase() === em);
         if (!found) {
-          return { data: null, error: new Error('User not found in demo accounts. Choose Kushagra, Bhagyesh, or Admin.') };
+          if (em.includes('kushagra') || em === 'demo@campus.edu' || em === 'buyer@campus.edu') {
+            found = users.find((u) => u.id === 'user-kushagra');
+          } else if (em.includes('bhagyesh') || em === 'seller@campus.edu') {
+            found = users.find((u) => u.id === 'user-bhagyesh');
+          } else if (em.includes('admin')) {
+            found = users.find((u) => u.id === 'user-admin');
+          }
+        }
+        if (!found) {
+          return { data: null, error: new Error('Invalid email or password. Please use one of the 1-click demo logins or create an account.') };
         }
         DemoStore.setActiveUser(found.id);
         return {
@@ -333,14 +343,20 @@ export function createMockClient() {
 
       async signUp({ email, options }) {
         const users = DemoStore.getUsers();
+        const em = (email || '').trim().toLowerCase();
+        const existing = users.find((u) => u.email.toLowerCase() === em);
+        if (existing) {
+          DemoStore.setActiveUser(existing.id);
+          return { data: { user: existing }, error: null };
+        }
         const newId = `user-${Date.now()}`;
         const newUser = {
           id: newId,
-          email: email.trim().toLowerCase(),
-          display_name: options?.data?.display_name || email.split('@')[0],
+          email: em,
+          display_name: options?.data?.display_name || em.split('@')[0],
           institution_id: options?.data?.institution_id || 'inst-1',
-          course_or_class: 'Student',
-          whatsapp_number: '+919800000000',
+          course_or_class: options?.data?.course_or_class || 'B.Tech Student',
+          whatsapp_number: options?.data?.whatsapp_number || '+919800000000',
           role: 'user',
           account_status: 'active',
         };
@@ -379,3 +395,4 @@ export function createMockClient() {
     },
   };
 }
+

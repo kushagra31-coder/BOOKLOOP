@@ -95,11 +95,11 @@ function initDemoState() {
     setStored('requests', requests);
   }
 
-  // Active session
-  let activeUserId = getStored('active_user_id', 'user-kushagra');
-  if (!users.find((u) => u.id === activeUserId)) {
-    activeUserId = 'user-kushagra';
-    setStored('active_user_id', activeUserId);
+  // Active session - default to null (logged out) so user starts signed out
+  let activeUserId = getStored('active_user_id', null);
+  if (activeUserId && !users.find((u) => u.id === activeUserId)) {
+    activeUserId = null;
+    setStored('active_user_id', null);
   }
 }
 
@@ -112,8 +112,9 @@ export class DemoStore {
 
   static getActiveUser() {
     const users = this.getUsers();
-    const activeId = getStored('active_user_id', 'user-kushagra');
-    return users.find((u) => u.id === activeId) || users[0];
+    const activeId = getStored('active_user_id', null);
+    if (!activeId) return null;
+    return users.find((u) => u.id === activeId) || null;
   }
 
   static setActiveUser(userId) {
@@ -385,3 +386,4 @@ export class DemoStore {
     return true;
   }
 }
+
