@@ -176,6 +176,63 @@ export function LoginPage() {
             Sign In
           </Button>
 
+          {/* Quick 1-Click Demo Accounts */}
+          <div style={{ marginTop: 'var(--space-6)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--color-border)' }}>
+            <p style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-bold)', color: 'var(--color-navy)', textAlign: 'center', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              ⚡ 1-Click Quick Demo Sign In
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-2)' }}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                fullWidth
+                style={{ justifyContent: 'flex-start', padding: 'var(--space-2) var(--space-3)' }}
+                onClick={() => {
+                  setEmail('kushagrasingh@gmail.com');
+                  setPassword('Demo@1234');
+                  signIn({ email: 'kushagrasingh@gmail.com', password: 'Demo@1234' }).then(() => {
+                    navigate(decodeURIComponent(nextUrl), { replace: true });
+                  });
+                }}
+              >
+                👤 Sign in as <strong>Kushagra Singh Tomar</strong> (Buyer)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                fullWidth
+                style={{ justifyContent: 'flex-start', padding: 'var(--space-2) var(--space-3)' }}
+                onClick={() => {
+                  setEmail('bhagyeshjain@gmail.com');
+                  setPassword('Demo@1234');
+                  signIn({ email: 'bhagyeshjain@gmail.com', password: 'Demo@1234' }).then(() => {
+                    navigate(decodeURIComponent(nextUrl), { replace: true });
+                  });
+                }}
+              >
+                👤 Sign in as <strong>Bhagyesh Jain</strong> (Seller)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                fullWidth
+                style={{ justifyContent: 'flex-start', padding: 'var(--space-2) var(--space-3)' }}
+                onClick={() => {
+                  setEmail('admin@bookloop.test');
+                  setPassword('Demo@1234');
+                  signIn({ email: 'admin@bookloop.test', password: 'Demo@1234' }).then(() => {
+                    navigate(decodeURIComponent(nextUrl), { replace: true });
+                  });
+                }}
+              >
+                🛡️ Sign in as <strong>BookLoop Admin</strong>
+              </Button>
+            </div>
+          </div>
+
           <p style={{ textAlign: 'center', fontSize: 'var(--font-size-sm)', color: 'var(--color-muted)', marginTop: 'var(--space-4)' }}>
             Don't have an account?{' '}
             <Link to="/register" style={{ color: 'var(--color-navy)', fontWeight: 'var(--font-weight-semibold)' }}>

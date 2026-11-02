@@ -19,12 +19,6 @@ export function HomePage() {
     setLoading(true);
     setError(null);
 
-    if (!isConfigured) {
-      setError('Supabase project credentials not configured. Please create web/.env.local with your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart Vite.');
-      setLoading(false);
-      return;
-    }
-
     try {
       // 1. Fetch active categories
       const catPromise = supabase

@@ -1,6 +1,8 @@
 import React from 'react';
 import { NavLink, Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { isDemoMode } from '../../lib/supabase';
+import { DemoStore } from '../../lib/demoStore';
 import './Layout.css';
 
 export function Layout() {
@@ -8,6 +10,44 @@ export function Layout() {
 
   return (
     <div className="app-shell">
+      {/* Interactive Demo Mode Account Switcher */}
+      {isDemoMode && (
+        <div className="demo-banner">
+          <div className="container demo-banner-inner">
+            <span className="demo-badge">⚡ Demo Mode (No DB Keys Needed)</span>
+            <div className="demo-switch-wrap">
+              <span className="demo-hint">Switch Persona:</span>
+              <div className="demo-switch-buttons">
+                <button
+                  type="button"
+                  className={`demo-btn ${user?.id === 'user-kushagra' ? 'active' : ''}`}
+                  onClick={() => DemoStore.setActiveUser('user-kushagra')}
+                  title="Buyer account at Acropolis Institute (AITR)"
+                >
+                  👤 Kushagra (Buyer)
+                </button>
+                <button
+                  type="button"
+                  className={`demo-btn ${user?.id === 'user-bhagyesh' ? 'active' : ''}`}
+                  onClick={() => DemoStore.setActiveUser('user-bhagyesh')}
+                  title="Seller account with textbooks at AITR"
+                >
+                  👤 Bhagyesh (Seller)
+                </button>
+                <button
+                  type="button"
+                  className={`demo-btn ${user?.id === 'user-admin' ? 'active' : ''}`}
+                  onClick={() => DemoStore.setActiveUser('user-admin')}
+                  title="Platform Administrator"
+                >
+                  🛡️ Admin
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Desktop Top Header Navigation (>768px) */}
       <header className="desktop-header">
         <div className="container header-inner">

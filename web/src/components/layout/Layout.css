@@ -4,6 +4,75 @@
   min-height: 100vh;
 }
 
+/* Demo Banner */
+.demo-banner {
+  background-color: var(--color-navy);
+  color: #FFFFFF;
+  padding: 6px 0;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.demo-banner-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.demo-badge {
+  background-color: var(--color-yellow);
+  color: var(--color-navy);
+  font-weight: var(--font-weight-bold);
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.5px;
+}
+
+.demo-switch-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.demo-hint {
+  opacity: 0.85;
+  font-size: 0.8rem;
+}
+
+.demo-switch-buttons {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.demo-btn {
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.775rem;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.demo-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.demo-btn.active {
+  background: var(--color-yellow);
+  color: var(--color-navy);
+  border-color: var(--color-yellow);
+  font-weight: var(--font-weight-bold);
+}
+
 /* Header Common */
 .brand-logo {
   display: inline-flex;
