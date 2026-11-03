@@ -4,12 +4,91 @@ import {
   DEMO_USERS,
   INITIAL_DEMO_BOOKS,
   generateCoverSvg,
-} from './demoData';
+} from './demoData.js';
 
 const STORAGE_KEY_PREFIX = 'bookloop_demo_';
 
+const INITIAL_REPORTS = [
+  {
+    id: 'rep-1',
+    reporter_id: 'user-priya',
+    reported_user_id: 'user-bhagyesh',
+    listing_id: 'book-1',
+    reason: 'condition_mismatch',
+    details: 'Book cover had slight wear not mentioned in description.',
+    status: 'open',
+    admin_notes: null,
+    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+    resolved_at: null,
+  },
+  {
+    id: 'rep-2',
+    reporter_id: 'user-rohan',
+    reported_user_id: 'user-kushagra',
+    listing_id: 'book-3',
+    reason: 'spam',
+    details: 'Verified test inquiry.',
+    status: 'resolved',
+    admin_notes: 'Reviewed by admin. Listing is authentic.',
+    created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
+    resolved_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+  },
+];
+
+const INITIAL_AUDIT = [
+  {
+    id: 'aud-1',
+    admin_id: 'user-admin',
+    action: 'institution_verified',
+    target_type: 'institution',
+    target_id: 'inst-1',
+    details: { message: 'Verified Acropolis Institute of Technology and Research campus domain' },
+    created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
+  },
+  {
+    id: 'aud-2',
+    admin_id: 'user-admin',
+    action: 'report_resolved',
+    target_type: 'report',
+    target_id: 'rep-2',
+    details: { message: 'Reviewed and closed test report on Higher Engineering Mathematics' },
+    created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+  },
+  {
+    id: 'aud-3',
+    admin_id: 'user-admin',
+    action: 'account_approved',
+    target_type: 'user',
+    target_id: 'user-kushagra',
+    details: { message: 'Verified campus credentials for Kushagra Singh Tomar' },
+    created_at: new Date(Date.now() - 3600000 * 72).toISOString(),
+  },
+];
+
+const INITIAL_CONTACT_MESSAGES = [
+  {
+    id: 'cmsg-1',
+    name: 'Aditya Mehta',
+    email: 'aditya.mehta@aitr.ac.in',
+    subject: 'Question about book handover points on campus',
+    message: 'Hi Admin, where is the designated safety meet point inside AITR campus?',
+    status: 'unread',
+    created_at: new Date(Date.now() - 3600000 * 14).toISOString(),
+  },
+  {
+    id: 'cmsg-2',
+    name: 'Sneha Patel',
+    email: 'sneha@dpsindore.edu',
+    subject: 'School textbook request for Class 12 CBSE',
+    message: 'Can we add NCERT Physics and Chemistry to the standard categories?',
+    status: 'read',
+    created_at: new Date(Date.now() - 3600000 * 36).toISOString(),
+  },
+];
+
 function getStored(key, defaultVal) {
   try {
+    if (typeof localStorage === 'undefined') return defaultVal;
     const raw = localStorage.getItem(STORAGE_KEY_PREFIX + key);
     return raw ? JSON.parse(raw) : defaultVal;
   } catch (e) {
@@ -19,6 +98,7 @@ function getStored(key, defaultVal) {
 
 function setStored(key, val) {
   try {
+    if (typeof localStorage === 'undefined') return;
     localStorage.setItem(STORAGE_KEY_PREFIX + key, JSON.stringify(val));
   } catch (e) {
     console.warn('[DemoStore] LocalStorage write error:', e);
@@ -26,11 +106,41 @@ function setStored(key, val) {
 }
 
 // Initialize seed data with covers if not already in localStorage
-function initDemoState() {
+export function initDemoState() {
   let users = getStored('users', null);
   if (!users) {
     users = DEMO_USERS;
     setStored('users', users);
+  }
+
+  let institutions = getStored('institutions', null);
+  if (!institutions) {
+    institutions = DEMO_INSTITUTIONS;
+    setStored('institutions', institutions);
+  }
+
+  let categories = getStored('categories', null);
+  if (!categories) {
+    categories = DEMO_CATEGORIES;
+    setStored('categories', categories);
+  }
+
+  let reports = getStored('reports', null);
+  if (!reports) {
+    reports = INITIAL_REPORTS;
+    setStored('reports', reports);
+  }
+
+  let audit = getStored('admin_audit', null);
+  if (!audit) {
+    audit = INITIAL_AUDIT;
+    setStored('admin_audit', audit);
+  }
+
+  let contactMessages = getStored('contact_messages', null);
+  if (!contactMessages) {
+    contactMessages = INITIAL_CONTACT_MESSAGES;
+    setStored('contact_messages', contactMessages);
   }
 
   let listings = getStored('listings', null);
@@ -39,7 +149,7 @@ function initDemoState() {
       const coverUrl = generateCoverSvg({
         title: b.title,
         author: b.author,
-        category: DEMO_CATEGORIES.find((c) => c.id === b.category_id)?.name || 'Engineering',
+        category: categories.find((c) => c.id === b.category_id)?.name || 'Engineering',
         colorHex: b.cover_color,
         accentHex: b.accent_color,
       });
@@ -133,11 +243,224 @@ export class DemoStore {
   }
 
   static getInstitutions() {
-    return DEMO_INSTITUTIONS;
+    return getStored('institutions', DEMO_INSTITUTIONS);
+  }
+
+  static upsertInstitution(instData) {
+    const list = [...this.getInstitutions()];
+    const id = instData.p_id || instData.id;
+    if (id) {
+      const idx = list.findIndex((x) => x.id === id);
+      if (idx !== -1) {
+        list[idx] = {
+          ...list[idx],
+          name: instData.p_name !== undefined ? instData.p_name.trim() : (instData.name?.trim() || list[idx].name),
+          institution_type: instData.p_institution_type !== undefined ? instData.p_institution_type : (instData.institution_type || list[idx].institution_type),
+          city: instData.p_city !== undefined ? instData.p_city : (instData.city !== undefined ? instData.city : list[idx].city),
+          area: instData.p_area !== undefined ? instData.p_area : (instData.area !== undefined ? instData.area : list[idx].area),
+          verification_method: instData.p_verification_method !== undefined ? instData.p_verification_method : (instData.verification_method || list[idx].verification_method),
+          is_active: instData.p_is_active !== undefined ? instData.p_is_active : (instData.is_active ?? list[idx].is_active),
+          updated_at: new Date().toISOString(),
+        };
+        setStored('institutions', list);
+        return list[idx].id;
+      }
+    }
+    const newId = `inst-${Date.now()}`;
+    const newInst = {
+      id: newId,
+      name: (instData.p_name || instData.name || 'New Campus').trim(),
+      institution_type: instData.p_institution_type || instData.institution_type || 'college',
+      city: instData.p_city || instData.city || 'Indore',
+      area: instData.p_area || instData.area || '',
+      verification_method: instData.p_verification_method || instData.verification_method || 'email_domain',
+      is_active: instData.p_is_active !== undefined ? instData.p_is_active : (instData.is_active ?? true),
+      created_at: new Date().toISOString(),
+    };
+    list.push(newInst);
+    setStored('institutions', list);
+    return newId;
+  }
+
+  static deleteInstitution(id) {
+    let list = this.getInstitutions();
+    list = list.filter((x) => x.id !== id);
+    setStored('institutions', list);
+    return true;
+  }
+
+  static toggleInstitution(id) {
+    const list = [...this.getInstitutions()];
+    const item = list.find((x) => x.id === id);
+    if (item) {
+      item.is_active = !item.is_active;
+      setStored('institutions', list);
+      return item.is_active;
+    }
+    return false;
   }
 
   static getCategories() {
-    return DEMO_CATEGORIES;
+    return getStored('categories', DEMO_CATEGORIES);
+  }
+
+  static upsertCategory(catData) {
+    const list = [...this.getCategories()];
+    const id = catData.p_id || catData.id;
+    if (id) {
+      const idx = list.findIndex((x) => x.id === id);
+      if (idx !== -1) {
+        list[idx] = {
+          ...list[idx],
+          name: catData.p_name !== undefined ? catData.p_name.trim() : (catData.name?.trim() || list[idx].name),
+          is_active: catData.p_is_active !== undefined ? catData.p_is_active : (catData.is_active ?? list[idx].is_active),
+          updated_at: new Date().toISOString(),
+        };
+        setStored('categories', list);
+        return list[idx].id;
+      }
+    }
+    const newId = `cat-${Date.now()}`;
+    const newCat = {
+      id: newId,
+      name: (catData.p_name || catData.name || 'New Category').trim(),
+      is_active: catData.p_is_active !== undefined ? catData.p_is_active : (catData.is_active ?? true),
+      created_at: new Date().toISOString(),
+    };
+    list.push(newCat);
+    setStored('categories', list);
+    return newId;
+  }
+
+  static deleteCategory(id) {
+    let list = this.getCategories();
+    list = list.filter((x) => x.id !== id);
+    setStored('categories', list);
+    return true;
+  }
+
+  static toggleCategory(id) {
+    const list = [...this.getCategories()];
+    const item = list.find((x) => x.id === id);
+    if (item) {
+      item.is_active = !item.is_active;
+      setStored('categories', list);
+      return item.is_active;
+    }
+    return false;
+  }
+
+  static getReports() {
+    const reports = getStored('reports', INITIAL_REPORTS);
+    const users = this.getUsers();
+    const listings = this.getListings();
+    return reports.map((r) => ({
+      ...r,
+      reporter: users.find((u) => u.id === r.reporter_id) || { display_name: 'Campus Student' },
+      reported_user: users.find((u) => u.id === r.reported_user_id) || { display_name: 'Campus User' },
+      listing: listings.find((l) => l.id === r.listing_id) || (r.listing_id ? { id: r.listing_id, title: 'Listing #' + r.listing_id } : null),
+    }));
+  }
+
+  static updateReport({ p_report_id, p_status, p_admin_notes }) {
+    const raw = [...getStored('reports', INITIAL_REPORTS)];
+    const target = raw.find((r) => r.id === p_report_id);
+    if (target) {
+      target.status = p_status;
+      if (p_admin_notes !== undefined) target.admin_notes = p_admin_notes;
+      if (p_status === 'resolved' || p_status === 'dismissed') {
+        target.resolved_at = new Date().toISOString();
+      }
+      setStored('reports', raw);
+      return true;
+    }
+    return false;
+  }
+
+  static getAuditLogs() {
+    return getStored('admin_audit', INITIAL_AUDIT);
+  }
+
+  static addAuditLog({ action, target_type, target_id, details }) {
+    const logs = [...getStored('admin_audit', INITIAL_AUDIT)];
+    const activeUser = this.getActiveUser();
+    logs.unshift({
+      id: `aud-${Date.now()}`,
+      admin_id: activeUser?.id || 'user-admin',
+      action,
+      target_type,
+      target_id: String(target_id || ''),
+      details: typeof details === 'object' ? details : { message: details },
+      created_at: new Date().toISOString(),
+    });
+    setStored('admin_audit', logs);
+  }
+
+  static getContactMessages() {
+    return getStored('contact_messages', INITIAL_CONTACT_MESSAGES);
+  }
+
+  static updateContactMessage(id, status) {
+    const msgs = [...getStored('contact_messages', INITIAL_CONTACT_MESSAGES)];
+    const target = msgs.find((m) => m.id === id);
+    if (target) {
+      target.status = status;
+      setStored('contact_messages', msgs);
+      return true;
+    }
+    return false;
+  }
+
+  static deleteContactMessage(id) {
+    let msgs = getStored('contact_messages', INITIAL_CONTACT_MESSAGES);
+    msgs = msgs.filter((m) => m.id !== id);
+    setStored('contact_messages', msgs);
+    return true;
+  }
+
+  static unhideListing(p_id) {
+    const listings = [...this.getListings()];
+    const book = listings.find((b) => b.id === p_id);
+    if (book) {
+      book.status = 'active';
+      setStored('listings', listings);
+      return true;
+    }
+    return false;
+  }
+
+  static deleteListingPermanent(p_id) {
+    let listings = this.getListings();
+    listings = listings.filter((b) => b.id !== p_id);
+    setStored('listings', listings);
+    return true;
+  }
+
+  static setUserStatus(userId, status, reason = '') {
+    const users = [...this.getUsers()];
+    const target = users.find((u) => u.id === userId);
+    if (target) {
+      target.account_status = status;
+      setStored('users', users);
+    }
+    if (status === 'suspended' || status === 'deleted') {
+      const listings = [...this.getListings()];
+      listings.forEach((b) => {
+        if (b.seller_id === userId && b.status === 'active') {
+          b.status = 'removed';
+        }
+      });
+      setStored('listings', listings);
+
+      const requests = [...this.getRequests()];
+      requests.forEach((r) => {
+        if ((r.buyer_id === userId || r.seller_id === userId) && r.status === 'pending') {
+          r.status = 'closed';
+        }
+      });
+      setStored('requests', requests);
+    }
+    return true;
   }
 
   static getListings() {
@@ -345,13 +668,13 @@ export class DemoStore {
     return seller?.whatsapp_number || '+919876543210';
   }
 
-  static markListingSold(p_id) {
+  static markListingSold(p_id, asAdmin = false) {
     const activeUser = this.getActiveUser();
     const listings = this.getListings();
     const book = listings.find((b) => b.id === p_id);
 
     if (!book) throw new Error('Listing not found.');
-    if (book.seller_id !== activeUser.id && activeUser.role !== 'admin') {
+    if (!asAdmin && activeUser && book.seller_id !== activeUser.id && activeUser.role !== 'admin') {
       throw new Error('Only the seller or admin can mark a book as sold.');
     }
 
@@ -371,13 +694,13 @@ export class DemoStore {
     return true;
   }
 
-  static removeListing(p_id) {
+  static removeListing(p_id, asAdmin = false) {
     const activeUser = this.getActiveUser();
     const listings = this.getListings();
     const book = listings.find((b) => b.id === p_id);
 
     if (!book) throw new Error('Listing not found.');
-    if (book.seller_id !== activeUser.id && activeUser.role !== 'admin') {
+    if (!asAdmin && activeUser && book.seller_id !== activeUser.id && activeUser.role !== 'admin') {
       throw new Error('Only the seller or admin can remove a listing.');
     }
 

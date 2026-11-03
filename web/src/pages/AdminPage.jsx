@@ -41,6 +41,7 @@ export function AdminPage() {
   const [institutions, setInstitutions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [editingInst, setEditingInst] = useState(null); // null or { id, name, ... }
+  const [editingCat, setEditingCat] = useState(null); // null or { id, name, is_active }
   const [newCategoryName, setNewCategoryName] = useState('');
 
   // 6. Audit Log State
@@ -152,6 +153,7 @@ export function AdminPage() {
           display_name,
           course_or_class,
           graduation_year,
+          account_status,
           created_at,
           institution:institutions(name)
         `)
@@ -290,6 +292,46 @@ export function AdminPage() {
     }
   };
 
+  // Restore/Unhide Listing Action
+  const handleUnhideListing = async (listingId) => {
+    try {
+      const { error } = await supabase.rpc('admin_unhide_listing', {
+        p_listing_id: listingId,
+      });
+
+      if (error) {
+        await supabase.from('listings').update({ status: 'active' }).eq('id', listingId);
+      }
+
+      showToast('Listing restored to active.', 'success');
+      await fetchListings();
+    } catch (err) {
+      console.error('Unhide listing error:', err);
+      showToast(err.message || 'Failed to restore listing.', 'error');
+    }
+  };
+
+  // Permanently Delete Listing Action
+  const handleDeleteListing = async (listingId, title) => {
+    if (!window.confirm(`Are you sure you want to permanently remove "${title}"?`)) return;
+
+    try {
+      const { error } = await supabase.rpc('admin_delete_listing', {
+        p_listing_id: listingId,
+      });
+
+      if (error) {
+        await supabase.from('listings').delete().eq('id', listingId);
+      }
+
+      showToast('Listing permanently removed.', 'success');
+      await fetchListings();
+    } catch (err) {
+      console.error('Delete listing error:', err);
+      showToast(err.message || 'Failed to delete listing.', 'error');
+    }
+  };
+
   // Set User Status Action (suspend/reactivate)
   const handleSetUserStatus = async (e) => {
     e.preventDefault();
@@ -323,7 +365,7 @@ export function AdminPage() {
       const { error } = await supabase.rpc('admin_upsert_institution', {
         p_id: editingInst.id || null,
         p_name: editingInst.name.trim(),
-        p_institution_type: editingInst.institution_type || 'university',
+        p_institution_type: editingInst.institution_type || 'college',
         p_city: editingInst.city?.trim() || null,
         p_area: editingInst.area?.trim() || null,
         p_verification_method: editingInst.verification_method || 'email_domain',
@@ -338,6 +380,50 @@ export function AdminPage() {
     } catch (err) {
       console.error('Upsert institution error:', err);
       showToast(err.message || 'Failed to save campus institution.', 'error');
+    }
+  };
+
+  // Toggle Institution Active Status
+  const handleToggleInstitution = async (inst) => {
+    try {
+      const { error } = await supabase.rpc('admin_upsert_institution', {
+        p_id: inst.id,
+        p_name: inst.name,
+        p_institution_type: inst.institution_type || 'college',
+        p_city: inst.city || null,
+        p_area: inst.area || null,
+        p_verification_method: inst.verification_method || 'email_domain',
+        p_is_active: !inst.is_active,
+      });
+
+      if (error) throw error;
+
+      showToast(`Institution ${inst.is_active ? 'deactivated' : 'activated'}.`, 'success');
+      await fetchTaxonomy();
+    } catch (err) {
+      console.error('Toggle institution error:', err);
+      showToast(err.message || 'Failed to toggle institution.', 'error');
+    }
+  };
+
+  // Delete Institution
+  const handleDeleteInstitution = async (inst) => {
+    if (!window.confirm(`Are you sure you want to remove "${inst.name}"?`)) return;
+
+    try {
+      const { error } = await supabase.rpc('admin_delete_institution', {
+        p_id: inst.id,
+      });
+
+      if (error) {
+        await supabase.from('institutions').delete().eq('id', inst.id);
+      }
+
+      showToast(`Institution "${inst.name}" removed.`, 'success');
+      await fetchTaxonomy();
+    } catch (err) {
+      console.error('Delete institution error:', err);
+      showToast(err.message || 'Failed to remove institution.', 'error');
     }
   };
 
@@ -380,6 +466,91 @@ export function AdminPage() {
     } catch (err) {
       console.error('Add category error:', err);
       showToast(err.message || 'Failed to add category.', 'error');
+    }
+  };
+
+  // Update Category Name
+  const handleUpdateCategory = async (e) => {
+    e.preventDefault();
+    if (!editingCat || !editingCat.name.trim()) return;
+
+    try {
+      const { error } = await supabase.rpc('admin_upsert_category', {
+        p_id: editingCat.id,
+        p_name: editingCat.name.trim(),
+        p_is_active: editingCat.is_active ?? true,
+      });
+
+      if (error) throw error;
+
+      showToast('Category updated.', 'success');
+      setEditingCat(null);
+      await fetchTaxonomy();
+    } catch (err) {
+      console.error('Update category error:', err);
+      showToast(err.message || 'Failed to update category.', 'error');
+    }
+  };
+
+  // Delete Category
+  const handleDeleteCategory = async (cat) => {
+    if (!window.confirm(`Are you sure you want to remove category "${cat.name}"?`)) return;
+
+    try {
+      const { error } = await supabase.rpc('admin_delete_category', {
+        p_id: cat.id,
+      });
+
+      if (error) {
+        await supabase.from('categories').delete().eq('id', cat.id);
+      }
+
+      showToast(`Category "${cat.name}" removed.`, 'success');
+      await fetchTaxonomy();
+    } catch (err) {
+      console.error('Delete category error:', err);
+      showToast(err.message || 'Failed to remove category.', 'error');
+    }
+  };
+
+  // Update Contact Message Status
+  const handleUpdateMessageStatus = async (msgId, newStatus) => {
+    try {
+      const { error } = await supabase.rpc('admin_update_contact_message', {
+        p_id: msgId,
+        p_status: newStatus,
+      });
+
+      if (error) {
+        await supabase.from('contact_messages').update({ status: newStatus }).eq('id', msgId);
+      }
+
+      showToast(`Message marked as ${newStatus}.`, 'success');
+      await fetchMessages();
+    } catch (err) {
+      console.error('Update message error:', err);
+      showToast(err.message || 'Failed to update message.', 'error');
+    }
+  };
+
+  // Delete Contact Message
+  const handleDeleteMessage = async (msgId) => {
+    if (!window.confirm('Delete this message from inbox?')) return;
+
+    try {
+      const { error } = await supabase.rpc('admin_delete_contact_message', {
+        p_id: msgId,
+      });
+
+      if (error) {
+        await supabase.from('contact_messages').delete().eq('id', msgId);
+      }
+
+      showToast('Message deleted.', 'success');
+      await fetchMessages();
+    } catch (err) {
+      console.error('Delete message error:', err);
+      showToast(err.message || 'Failed to delete message.', 'error');
     }
   };
 
@@ -642,20 +813,36 @@ export function AdminPage() {
                         <span className={`status-pill ${item.status}`}>{item.status}</span>
                       </td>
                       <td>
-                        {item.status !== 'removed' ? (
+                        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                          {item.status !== 'removed' ? (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => {
+                                setHidingListingId(item.id);
+                                setHideReason('');
+                              }}
+                            >
+                              Hide
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleUnhideListing(item.id)}
+                            >
+                              Restore
+                            </Button>
+                          )}
                           <Button
-                            variant="danger"
+                            variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              setHidingListingId(item.id);
-                              setHideReason('');
-                            }}
+                            style={{ color: 'var(--color-danger)' }}
+                            onClick={() => handleDeleteListing(item.id, item.title)}
                           >
-                            Hide Listing
+                            Delete
                           </Button>
-                        ) : (
-                          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-muted)' }}>Hidden</span>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -694,6 +881,7 @@ export function AdminPage() {
                     <th>Display Name</th>
                     <th>Campus Institution</th>
                     <th>Course</th>
+                    <th>Status</th>
                     <th>Joined</th>
                     <th>Actions</th>
                   </tr>
@@ -706,29 +894,37 @@ export function AdminPage() {
                       </td>
                       <td>{u.institution?.name || 'N/A'}</td>
                       <td>{u.course_or_class || '—'}</td>
+                      <td>
+                        <span className={`status-pill ${u.account_status === 'suspended' ? 'declined' : 'accepted'}`}>
+                          {u.account_status || 'active'}
+                        </span>
+                      </td>
                       <td>{new Date(u.created_at).toLocaleDateString()}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setUserStatusModal({ user: u, nextStatus: 'active' });
-                              setUserStatusReason('');
-                            }}
-                          >
-                            Activate
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => {
-                              setUserStatusModal({ user: u, nextStatus: 'suspended' });
-                              setUserStatusReason('');
-                            }}
-                          >
-                            Suspend
-                          </Button>
+                          {u.account_status === 'suspended' ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setUserStatusModal({ user: u, nextStatus: 'active' });
+                                setUserStatusReason('');
+                              }}
+                            >
+                              Activate
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => {
+                                setUserStatusModal({ user: u, nextStatus: 'suspended' });
+                                setUserStatusReason('');
+                              }}
+                            >
+                              Suspend
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -757,7 +953,7 @@ export function AdminPage() {
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => setEditingInst({ name: '', institution_type: 'university', city: '', area: '', verification_method: 'email_domain', is_active: true })}
+                onClick={() => setEditingInst({ name: '', institution_type: 'college', city: '', area: '', verification_method: 'email_domain', is_active: true })}
               >
                 + Add Campus
               </Button>
@@ -786,13 +982,30 @@ export function AdminPage() {
                         </span>
                       </td>
                       <td>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingInst(inst)}
-                        >
-                          Edit
-                        </Button>
+                        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingInst(inst)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleToggleInstitution(inst)}
+                          >
+                            {inst.is_active ? 'Deactivate' : 'Activate'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            style={{ color: 'var(--color-danger)' }}
+                            onClick={() => handleDeleteInstitution(inst)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -838,13 +1051,30 @@ export function AdminPage() {
                         </span>
                       </td>
                       <td>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleToggleCategory(cat)}
-                        >
-                          {cat.is_active ? 'Deactivate' : 'Activate'}
-                        </Button>
+                        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingCat(cat)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleToggleCategory(cat)}
+                          >
+                            {cat.is_active ? 'Deactivate' : 'Activate'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            style={{ color: 'var(--color-danger)' }}
+                            onClick={() => handleDeleteCategory(cat)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -942,6 +1172,7 @@ export function AdminPage() {
                     <th>Message</th>
                     <th>Status</th>
                     <th>Date</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -958,6 +1189,36 @@ export function AdminPage() {
                         <span className={`status-pill ${m.status}`}>{m.status}</span>
                       </td>
                       <td>{new Date(m.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                          {m.status !== 'read' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleUpdateMessageStatus(m.id, 'read')}
+                            >
+                              Mark Read
+                            </Button>
+                          )}
+                          {m.status !== 'archived' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleUpdateMessageStatus(m.id, 'archived')}
+                            >
+                              Archive
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            style={{ color: 'var(--color-danger)' }}
+                            onClick={() => handleDeleteMessage(m.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1142,6 +1403,45 @@ export function AdminPage() {
                 </Button>
                 <Button variant="primary" type="submit">
                   Save Campus
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Category Modal */}
+      {editingCat && (
+        <div className="admin-modal-overlay" role="dialog" aria-modal="true">
+          <div className="admin-modal-box">
+            <h2 style={{ fontSize: 'var(--font-size-lg)', color: 'var(--color-navy)', marginBottom: 'var(--space-2)' }}>
+              Edit Category
+            </h2>
+
+            <form onSubmit={handleUpdateCategory} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <Field
+                label="Category Name"
+                placeholder="e.g. Computer Science"
+                value={editingCat.name}
+                onChange={(e) => setEditingCat({ ...editingCat, name: e.target.value })}
+                required
+              />
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--font-size-sm)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={editingCat.is_active ?? true}
+                  onChange={(e) => setEditingCat({ ...editingCat, is_active: e.target.checked })}
+                />
+                Active Category
+              </label>
+
+              <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end', marginTop: 'var(--space-2)' }}>
+                <Button variant="ghost" type="button" onClick={() => setEditingCat(null)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" type="submit">
+                  Save Category
                 </Button>
               </div>
             </form>

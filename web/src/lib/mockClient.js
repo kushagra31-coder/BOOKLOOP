@@ -5,7 +5,7 @@
  * realistic Indian textbooks, and Kushagra & Bhagyesh accounts!
  */
 
-import { DemoStore } from './demoStore';
+import { DemoStore } from './demoStore.js';
 
 class MockQueryBuilder {
   constructor(table) {
@@ -18,6 +18,10 @@ class MockQueryBuilder {
     this.selectQuery = '*';
     this.updateData = null;
     this.insertData = null;
+    this.limitCount = null;
+    this.rangeFrom = undefined;
+    this.rangeTo = undefined;
+    this.isDelete = false;
   }
 
   select(fields = '*') {
@@ -30,14 +34,45 @@ class MockQueryBuilder {
     return this;
   }
 
+  neq(field, val) {
+    this.filters.push({ type: 'neq', field, val });
+    return this;
+  }
+
+  is(field, val) {
+    this.filters.push({ type: 'is', field, val });
+    return this;
+  }
+
   in(field, values) {
     this.filters.push({ type: 'in', field, values });
+    return this;
+  }
+
+  ilike(field, pattern) {
+    this.filters.push({ type: 'ilike', field, val: pattern });
+    return this;
+  }
+
+  like(field, pattern) {
+    this.filters.push({ type: 'like', field, val: pattern });
     return this;
   }
 
   order(field, opts = {}) {
     this.sortField = field;
     this.sortAscending = opts.ascending !== false;
+    return this;
+  }
+
+  limit(count) {
+    this.limitCount = count;
+    return this;
+  }
+
+  range(from, to) {
+    this.rangeFrom = from;
+    this.rangeTo = to;
     return this;
   }
 
@@ -62,6 +97,7 @@ class MockQueryBuilder {
   }
 
   delete() {
+    this.isDelete = true;
     return this;
   }
 
@@ -84,6 +120,59 @@ class MockQueryBuilder {
   }
 
   async exec() {
+    // Handle Delete
+    if (this.isDelete) {
+      const idFilter = this.filters.find((f) => f.field === 'id')?.val;
+      if (idFilter) {
+        if (this.table === 'institutions') {
+          DemoStore.deleteInstitution(idFilter);
+          DemoStore.addAuditLog({ action: 'DELETE_INSTITUTION', target_type: 'institution', target_id: idFilter, details: { id: idFilter } });
+        } else if (this.table === 'categories') {
+          DemoStore.deleteCategory(idFilter);
+          DemoStore.addAuditLog({ action: 'DELETE_CATEGORY', target_type: 'category', target_id: idFilter, details: { id: idFilter } });
+        } else if (this.table === 'listings') {
+          DemoStore.deleteListingPermanent(idFilter);
+          DemoStore.addAuditLog({ action: 'DELETE_LISTING', target_type: 'listing', target_id: idFilter, details: { id: idFilter } });
+        } else if (this.table === 'contact_messages') {
+          DemoStore.deleteContactMessage(idFilter);
+        }
+      }
+      return { data: null, error: null };
+    }
+
+    // Handle Update
+    if (this.updateData) {
+      const idFilter = this.filters.find((f) => f.field === 'id')?.val;
+      if (this.table === 'institutions' && idFilter) {
+        DemoStore.upsertInstitution({ id: idFilter, ...this.updateData });
+        DemoStore.addAuditLog({ action: 'UPDATE_INSTITUTION', target_type: 'institution', target_id: idFilter, details: this.updateData });
+      } else if (this.table === 'categories' && idFilter) {
+        DemoStore.upsertCategory({ id: idFilter, ...this.updateData });
+        DemoStore.addAuditLog({ action: 'UPDATE_CATEGORY', target_type: 'category', target_id: idFilter, details: this.updateData });
+      } else if (this.table === 'contact_messages' && idFilter) {
+        if (this.updateData.status) {
+          DemoStore.updateContactMessage(idFilter, this.updateData.status);
+        }
+      } else if (this.table === 'profiles') {
+        const users = DemoStore.getUsers();
+        const u = users.find((x) => x.id === idFilter);
+        if (u) {
+          Object.assign(u, this.updateData);
+          localStorage.setItem('bookloop_demo_users', JSON.stringify(users));
+        }
+      } else if (this.table === 'profile_private') {
+        const users = DemoStore.getUsers();
+        const uidFilter = this.filters.find((f) => f.field === 'user_id')?.val;
+        const u = users.find((x) => x.id === uidFilter);
+        if (u) {
+          if (this.updateData.whatsapp_number !== undefined) u.whatsapp_number = this.updateData.whatsapp_number;
+          if (this.updateData.account_status !== undefined) u.account_status = this.updateData.account_status;
+          localStorage.setItem('bookloop_demo_users', JSON.stringify(users));
+        }
+      }
+      return { data: this.updateData, error: null };
+    }
+
     let result = [];
     const activeUser = DemoStore.getActiveUser();
 
@@ -114,98 +203,23 @@ class MockQueryBuilder {
         institution_id: u.institution_id,
         course_or_class: u.course_or_class,
         graduation_year: u.graduation_year,
-        created_at: '2026-08-01T00:00:00Z',
+        account_status: u.account_status || 'active',
+        created_at: u.created_at || '2026-08-01T00:00:00Z',
         institution: institutions.find((i) => i.id === u.institution_id) || { name: 'AITR Indore', city: 'Indore' },
         private: { whatsapp_number: u.whatsapp_number, account_status: u.account_status || 'active' },
       }));
     } else if (this.table === 'reports') {
-      result = [
-        {
-          id: 'rep-1',
-          reporter_id: 'user-priya',
-          reported_user_id: 'user-bhagyesh',
-          listing_id: 'book-1',
-          reason: 'condition_mismatch',
-          details: 'Book cover had slight wear not mentioned in description.',
-          status: 'open',
-          admin_notes: null,
-          created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-          resolved_at: null,
-          reporter: { display_name: 'Priya Nair' },
-          reported_user: { display_name: 'Bhagyesh Jain' },
-          listing: { id: 'book-1', title: 'Operating System Concepts (10th Dinosaur Edition)' },
-        },
-        {
-          id: 'rep-2',
-          reporter_id: 'user-rohan',
-          reported_user_id: 'user-kushagra',
-          listing_id: 'book-3',
-          reason: 'spam',
-          details: 'Verified test inquiry.',
-          status: 'resolved',
-          admin_notes: 'Reviewed by admin. Listing is authentic.',
-          created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
-          resolved_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-          reporter: { display_name: 'Rohan Verma' },
-          reported_user: { display_name: 'Kushagra Singh Tomar' },
-          listing: { id: 'book-3', title: 'Higher Engineering Mathematics' },
-        },
-      ];
+      result = [...DemoStore.getReports()];
     } else if (this.table === 'admin_audit') {
-      result = [
-        {
-          id: 'aud-1',
-          admin_user_id: 'user-admin',
-          action: 'institution_verified',
-          target_type: 'institution',
-          target_id: 'inst-1',
-          details: 'Verified Acropolis Institute of Technology and Research campus domain',
-          created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
-        },
-        {
-          id: 'aud-2',
-          admin_user_id: 'user-admin',
-          action: 'report_resolved',
-          target_type: 'report',
-          target_id: 'rep-2',
-          details: 'Reviewed and closed test report on Higher Engineering Mathematics',
-          created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-        },
-        {
-          id: 'aud-3',
-          admin_user_id: 'user-admin',
-          action: 'account_approved',
-          target_type: 'user',
-          target_id: 'user-kushagra',
-          details: 'Verified campus credentials for Kushagra Singh Tomar',
-          created_at: new Date(Date.now() - 3600000 * 72).toISOString(),
-        },
-      ];
+      result = [...DemoStore.getAuditLogs()];
     } else if (this.table === 'contact_messages') {
-      result = [
-        {
-          id: 'cmsg-1',
-          name: 'Aditya Mehta',
-          email: 'aditya.mehta@aitr.ac.in',
-          subject: 'Question about book handover points on campus',
-          message: 'Hi Admin, where is the designated safety meet point inside AITR campus?',
-          created_at: new Date(Date.now() - 3600000 * 14).toISOString(),
-        },
-        {
-          id: 'cmsg-2',
-          name: 'Sneha Patel',
-          email: 'sneha@dpsindore.edu',
-          subject: 'School textbook request for Class 12 CBSE',
-          message: 'Can we add NCERT Physics and Chemistry to the standard categories?',
-          created_at: new Date(Date.now() - 3600000 * 36).toISOString(),
-        },
-      ];
+      result = [...DemoStore.getContactMessages()];
     } else if (this.table === 'profile_private') {
       const users = DemoStore.getUsers();
       result = users.map((u) => ({
         user_id: u.id,
         whatsapp_number: u.whatsapp_number,
-        account_status: u.account_status,
+        account_status: u.account_status || 'active',
       }));
     } else if (this.table === 'admin_roles') {
       const users = DemoStore.getUsers();
@@ -234,38 +248,23 @@ class MockQueryBuilder {
       });
     }
 
-    // 2. Handle Update
-    if (this.updateData) {
-      if (this.table === 'profiles') {
-        const users = DemoStore.getUsers();
-        const idFilter = this.filters.find((f) => f.field === 'id')?.val;
-        const u = users.find((x) => x.id === idFilter);
-        if (u) {
-          Object.assign(u, this.updateData);
-          localStorage.setItem('bookloop_demo_users', JSON.stringify(users));
-        }
-      } else if (this.table === 'profile_private') {
-        const users = DemoStore.getUsers();
-        const idFilter = this.filters.find((f) => f.field === 'user_id')?.val;
-        const u = users.find((x) => x.id === idFilter);
-        if (u && this.updateData.whatsapp_number !== undefined) {
-          u.whatsapp_number = this.updateData.whatsapp_number;
-          localStorage.setItem('bookloop_demo_users', JSON.stringify(users));
-        }
-      }
-      return { data: this.updateData, error: null };
-    }
-
-    // 3. Apply Filters
+    // 2. Apply Filters
     for (const f of this.filters) {
       if (f.type === 'eq') {
         result = result.filter((row) => row[f.field] === f.val);
+      } else if (f.type === 'neq') {
+        result = result.filter((row) => row[f.field] !== f.val);
+      } else if (f.type === 'is') {
+        result = result.filter((row) => row[f.field] === f.val);
       } else if (f.type === 'in') {
-        result = result.filter((row) => f.values.includes(row[f.field]));
+        result = result.filter((row) => Array.isArray(f.values) && f.values.includes(row[f.field]));
+      } else if (f.type === 'ilike' || f.type === 'like') {
+        const clean = (f.val || '').replace(/%/g, '').toLowerCase();
+        result = result.filter((row) => String(row[f.field] || '').toLowerCase().includes(clean));
       }
     }
 
-    // 4. Apply Sorting
+    // 3. Apply Sorting
     if (this.sortField) {
       result.sort((a, b) => {
         const valA = a[this.sortField];
@@ -276,13 +275,20 @@ class MockQueryBuilder {
       });
     }
 
-    // 5. Single / MaybeSingle
+    // 4. Single / MaybeSingle
     if (this.isSingle || this.isMaybeSingle) {
       const singleRow = result.length > 0 ? result[0] : null;
       if (this.isSingle && !singleRow) {
         return { data: null, error: new Error('Record not found.') };
       }
       return { data: singleRow, error: null };
+    }
+
+    // 5. Apply Slicing (Range or Limit)
+    if (this.rangeFrom !== undefined && this.rangeTo !== undefined) {
+      result = result.slice(this.rangeFrom, this.rangeTo + 1);
+    } else if (this.limitCount !== null && this.limitCount !== undefined) {
+      result = result.slice(0, this.limitCount);
     }
 
     return { data: result, error: null };
@@ -345,49 +351,143 @@ export function createMockClient() {
           const listings = DemoStore.getListings();
           const requests = DemoStore.getRequests();
           const users = DemoStore.getUsers();
+          const reports = DemoStore.getReports();
           return {
             data: {
+              listings_published: listings.filter((b) => b.status !== 'removed').length,
+              listingsPublished: listings.filter((b) => b.status !== 'removed').length,
               active_listings: listings.filter((b) => b.status === 'active').length,
-              sold_listings: listings.filter((b) => b.status === 'sold').length,
+              requests_total: requests.length,
+              requestsTotal: requests.length,
+              requests_accepted: requests.filter((r) => r.status === 'accepted').length,
+              requestsAccepted: requests.filter((r) => r.status === 'accepted').length,
+              books_sold: listings.filter((b) => b.status === 'sold').length,
+              booksSold: listings.filter((b) => b.status === 'sold').length,
               total_users: users.length,
-              pending_requests: requests.filter((r) => r.status === 'pending').length,
-              accepted_requests: requests.filter((r) => r.status === 'accepted').length,
-              open_reports: 1,
+              open_reports: reports.filter((r) => r.status === 'open').length,
+              openReports: reports.filter((r) => r.status === 'open').length,
+              suspended_users: users.filter((u) => u.account_status === 'suspended').length,
+              suspendedUsers: users.filter((u) => u.account_status === 'suspended').length,
             },
             error: null,
           };
         }
 
         if (funcName === 'admin_update_report') {
+          DemoStore.updateReport(params);
+          DemoStore.addAuditLog({
+            action: 'UPDATE_REPORT',
+            target_type: 'report',
+            target_id: params.p_report_id,
+            details: { status: params.p_status, notes: params.p_admin_notes || '' },
+          });
           return { data: { success: true }, error: null };
         }
 
         if (funcName === 'admin_hide_listing') {
           if (params.p_listing_id) {
-            const list = DemoStore.getListings();
-            const target = list.find((b) => b.id === params.p_listing_id);
-            if (target) target.status = 'hidden';
-            localStorage.setItem('bookloop_demo_listings', JSON.stringify(list));
+            DemoStore.removeListing(params.p_listing_id, true);
+            DemoStore.addAuditLog({
+              action: 'HIDE_LISTING',
+              target_type: 'listing',
+              target_id: params.p_listing_id,
+              details: { reason: params.p_reason || 'Admin moderation' },
+            });
+          }
+          return { data: { success: true }, error: null };
+        }
+
+        if (funcName === 'admin_unhide_listing' || funcName === 'admin_restore_listing') {
+          if (params.p_listing_id) {
+            DemoStore.unhideListing(params.p_listing_id);
+            DemoStore.addAuditLog({
+              action: 'RESTORE_LISTING',
+              target_type: 'listing',
+              target_id: params.p_listing_id,
+              details: { reason: 'Admin restored listing to active' },
+            });
+          }
+          return { data: { success: true }, error: null };
+        }
+
+        if (funcName === 'admin_delete_listing') {
+          if (params.p_listing_id) {
+            DemoStore.deleteListingPermanent(params.p_listing_id);
+            DemoStore.addAuditLog({
+              action: 'DELETE_LISTING',
+              target_type: 'listing',
+              target_id: params.p_listing_id,
+              details: { reason: 'Admin permanently removed listing' },
+            });
           }
           return { data: { success: true }, error: null };
         }
 
         if (funcName === 'admin_set_user_status') {
           if (params.p_user_id) {
-            const users = DemoStore.getUsers();
-            const target = users.find((u) => u.id === params.p_user_id);
-            if (target) target.account_status = params.p_status;
-            localStorage.setItem('bookloop_demo_users', JSON.stringify(users));
+            DemoStore.setUserStatus(params.p_user_id, params.p_status, params.p_reason);
+            DemoStore.addAuditLog({
+              action: 'SET_USER_STATUS',
+              target_type: 'user',
+              target_id: params.p_user_id,
+              details: { status: params.p_status, reason: params.p_reason || '' },
+            });
           }
           return { data: { success: true }, error: null };
         }
 
         if (funcName === 'admin_upsert_institution') {
-          return { data: { id: params.p_id || `inst-${Date.now()}` }, error: null };
+          const id = DemoStore.upsertInstitution(params);
+          DemoStore.addAuditLog({
+            action: params.p_id ? 'UPDATE_INSTITUTION' : 'ADD_INSTITUTION',
+            target_type: 'institution',
+            target_id: id,
+            details: { name: params.p_name, is_active: params.p_is_active },
+          });
+          return { data: id, error: null };
+        }
+
+        if (funcName === 'admin_delete_institution') {
+          DemoStore.deleteInstitution(params.p_id);
+          DemoStore.addAuditLog({
+            action: 'DELETE_INSTITUTION',
+            target_type: 'institution',
+            target_id: params.p_id,
+            details: { id: params.p_id },
+          });
+          return { data: { success: true }, error: null };
         }
 
         if (funcName === 'admin_upsert_category') {
-          return { data: { id: params.p_id || `cat-${Date.now()}` }, error: null };
+          const id = DemoStore.upsertCategory(params);
+          DemoStore.addAuditLog({
+            action: params.p_id ? 'UPDATE_CATEGORY' : 'ADD_CATEGORY',
+            target_type: 'category',
+            target_id: id,
+            details: { name: params.p_name, is_active: params.p_is_active },
+          });
+          return { data: id, error: null };
+        }
+
+        if (funcName === 'admin_delete_category') {
+          DemoStore.deleteCategory(params.p_id);
+          DemoStore.addAuditLog({
+            action: 'DELETE_CATEGORY',
+            target_type: 'category',
+            target_id: params.p_id,
+            details: { id: params.p_id },
+          });
+          return { data: { success: true }, error: null };
+        }
+
+        if (funcName === 'admin_update_contact_message') {
+          DemoStore.updateContactMessage(params.p_id, params.p_status);
+          return { data: { success: true }, error: null };
+        }
+
+        if (funcName === 'admin_delete_contact_message') {
+          DemoStore.deleteContactMessage(params.p_id);
+          return { data: { success: true }, error: null };
         }
 
         return { data: null, error: null };
